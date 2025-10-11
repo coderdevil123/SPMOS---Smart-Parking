@@ -43,39 +43,62 @@ export default function BookingModal() {
     }
   };
 
-  const handleConfirmBooking = () => {
-    if (!vehicleNumber.trim()) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Please enter your vehicle number",
-      });
-      return;
-    }
+  const handleConfirmBooking = async () => {
+  if (!vehicleNumber.trim()) {
+    toast({
+      variant: "destructive",
+      title: "Error",
+      description: "Please enter your vehicle number",
+    });
+    return;
+  }
 
-    const bookingData = {
-      spot: selectedSpot,
-      vehicleNumber: vehicleNumber.trim(),
-      vehicleType,
-      duration,
-      startTime: new Date(startTime),
-      totalCost: total,
-    };
+  const bookingData = {
+    parkingSpotId: selectedSpot.id,
+    parkingLotName: selectedSpot.name,
+    location: {
+      address: selectedSpot.address,
+      lat: selectedSpot.lat,
+      lng: selectedSpot.lng,
+    },
+    vehicleNumber: vehicleNumber.trim(),
+    vehicleType,
+    duration,
+    startTime: new Date(startTime),
+    endTime: new Date(new Date(startTime).getTime() + duration * 60 * 60 * 1000),
+    totalCost: total,
+  };
 
-    // Store booking data
-    localStorage.setItem('spmos_booking', JSON.stringify(bookingData));
-    
-    // Start the session
-    startSession(bookingData);
-    
-    // Close modal
+  try {
+    const res = await fetch("/api/bookings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(bookingData),
+    });
+
+    if (!res.ok) throw new Error("Failed to book");
+
+    const savedBooking = await res.json();
+
+    // Update session context with DB data
+    startSession(savedBooking);
+
     setSelectedSpot(null);
-    
+
     toast({
       title: "Booking Confirmed!",
-      description: "Your parking spot has been reserved. Navigate to your spot to start the session.",
+      description: `Your parking spot ${selectedSpot.name} has been reserved.`,
     });
-  };
+  } catch (err) {
+    console.error("Booking error:", err);
+    toast({
+      variant: "destructive",
+      title: "Booking Failed",
+      description: "Something went wrong. Please try again.",
+    });
+  }
+};
+
 
   return (
     <Dialog open={!!selectedSpot} onOpenChange={() => setSelectedSpot(null)}>
