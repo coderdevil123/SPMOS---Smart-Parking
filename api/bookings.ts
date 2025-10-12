@@ -1,65 +1,77 @@
-import dbConnect from "../lib/mongodb";   // FIXED PATH
-import Booking from "../models/Booking";
-import User from "../models/User";
+// app/api/booking/route.ts
 
-export default async function handler(req: any, res: any) {
-  await dbConnect();
+// 🚨 Use the correct path for your connection utility 
+import dbConnect from "@/server/lib/dbConnect"; // Assuming this is your actual path
+import Booking from "@/server/models/Booking"; // Assuming this is your actual path
+import { NextRequest, NextResponse } from "next/server";
 
-  if (req.method === "POST") {
-    try {
-      const body = req.body;
+// --- POST Handler ---
+export async function POST(request: NextRequest) {
+  try {
+    await dbConnect(); // Robust connection
 
-      // Validate required fields
-      if (
-        !body.parkingSpotId ||
-        !body.startTime ||
-        !body.endTime ||
-        !body.vehicleNumber ||
-        !body.vehicleType ||
-        !body.duration ||
-        !body.totalCost
-      ) {
-        return res.status(400).json({ error: "Missing required fields" });
-      }
+    // Use .json() for NextRequest to parse the body
+    const body = await request.json(); 
 
-      // Create booking
-      const booking = await Booking.create({
-        auth0Id: body.auth0Id,
-        userId: body.userId,
-        parkingSpotId: body.parkingSpotId,
-        parkingLotName: body.parkingLotName,
-        location: body.location,
-        vehicleNumber: body.vehicleNumber,
-        vehicleType: body.vehicleType,
-        duration: body.duration,
-        totalCost: body.totalCost,
-        startTime: new Date(body.startTime),
-        endTime: new Date(body.endTime),
-        status: "booked",
-      });
-
-      return res.status(201).json(booking);
-    } catch (err: any) {
-      console.error("Booking POST error", err);
-      return res.status(500).json({ error: err.message || err });
+    // Validate required fields
+    if (
+      !body.parkingSpotId ||
+      !body.startTime ||
+      !body.endTime ||
+      !body.vehicleNumber ||
+      !body.vehicleType ||
+      !body.duration ||
+      !body.totalCost
+    ) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
+
+    // Create booking
+    const booking = await Booking.create({
+      // Ensure all fields match your model structure
+      // ... fields
+      auth0Id: body.auth0Id,
+      userId: body.userId,
+      parkingSpotId: body.parkingSpotId,
+      parkingLotName: body.parkingLotName,
+      location: body.location,
+      vehicleNumber: body.vehicleNumber,
+      vehicleType: body.vehicleType,
+      duration: body.duration,
+      totalCost: body.totalCost,
+      startTime: new Date(body.startTime),
+      endTime: new Date(body.endTime),
+      status: "booked",
+    });
+
+    return NextResponse.json(booking, { status: 201 });
+  } catch (err: any) {
+    console.error("Booking POST error", err);
+    return NextResponse.json({ error: err.message || "Internal Server Error" }, { status: 500 });
   }
-
-  if (req.method === "GET") {
-    try {
-      const { auth0Id, userId } = req.query;
-      const q: any = {};
-      if (auth0Id) q.auth0Id = auth0Id;
-      if (userId) q.userId = userId;
-
-      const bookings = await Booking.find(q).sort({ createdAt: -1 }).limit(100);
-      return res.status(200).json(bookings);
-    } catch (err: any) {
-      console.error("Booking GET error", err);
-      return res.status(500).json({ error: err.message || err });
-    }
-  }
-
-  res.setHeader("Allow", "GET,POST");
-  return res.status(405).end("Method Not Allowed");
 }
+
+// --- GET Handler ---
+export async function GET(request: NextRequest) {
+  try {
+    await dbConnect();
+
+    // Get search params from the request URL
+    const { searchParams } = new URL(request.url);
+    const auth0Id = searchParams.get('auth0Id');
+    const userId = searchParams.get('userId');
+
+    const q: any = {};
+    if (auth0Id) q.auth0Id = auth0Id;
+    if (userId) q.userId = userId;
+
+    const bookings = await Booking.find(q).sort({ createdAt: -1 }).limit(100);
+
+    return NextResponse.json(bookings, { status: 200 });
+  } catch (err: any) {
+    console.error("Booking GET error", err);
+    return NextResponse.json({ error: err.message || "Internal Server Error" }, { status: 500 });
+  }
+}
+
+// No need for res.setHeader("Allow", "GET,POST") in App Router
