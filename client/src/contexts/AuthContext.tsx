@@ -6,12 +6,29 @@ import {
   ReactNode,
 } from "react";
 
-const AuthContext = createContext<any>(null);
+type User = {
+  id: string;
+  name: string;
+  username: string;
+  email: string;
+  phone?: string;
+};
+
+type AuthContextType = {
+  isAuthenticated: boolean;
+  user: User | null;
+  signup: (userData: any) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => void;
+};
+
+const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [user, setUser] = useState<any | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
 
+  // ✅ Load user from localStorage on page refresh
   useEffect(() => {
     const storedUser = localStorage.getItem("spmos_user");
     if (storedUser) {
@@ -20,27 +37,68 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  const login = (email: string, password: string) => {
-    // Simple dummy login logic
-    if (email === "test@example.com" && password === "password123") {
-      const dummyUser = { email: "test@example.com", fullName: "Test User" };
-      localStorage.setItem("spmos_user", JSON.stringify(dummyUser));
-      setUser(dummyUser);
+  // ✅ Signup Function
+  const signup = async (userData: any) => {
+    try {
+      const res = await fetch("http://localhost:5000/api/users/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(userData),
+      });
+
+      // 🧠 Handle non-JSON or failed responses safely
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error("Invalid response from server");
+      }
+
+      if (!res.ok) throw new Error(data.message || "Signup failed");
+
+      // ✅ Store user locally
+      localStorage.setItem("spmos_user", JSON.stringify(data.user));
+      setUser(data.user);
       setIsAuthenticated(true);
-      return Promise.resolve();
+    } catch (err) {
+      console.error("Signup Error:", err);
+      throw err;
     }
-    return Promise.reject(new Error("Invalid email or password"));
   };
 
-  const signup = (userData: any) => {
-    // Simple dummy signup logic
-    const dummyUser = { email: userData.email, fullName: userData.fullName };
-    localStorage.setItem("spmos_user", JSON.stringify(dummyUser));
-    setUser(dummyUser);
-    setIsAuthenticated(true);
-    return Promise.resolve();
+  // ✅ Login Function
+  const login = async (email: string, password: string) => {
+    try {
+      const res = await fetch("http://localhost:5000/api/users/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      // 🧠 Read as text first (to catch any HTML errors like "<!DOCTYPE>")
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        console.error("Invalid JSON received from backend:", text);
+        throw new Error("Server returned invalid response (not JSON)");
+      }
+
+      if (!res.ok) throw new Error(data.message || "Login failed");
+
+      // ✅ Store and update state
+      localStorage.setItem("spmos_user", JSON.stringify(data.user));
+      setUser(data.user);
+      setIsAuthenticated(true);
+    } catch (err) {
+      console.error("Login Error:", err);
+      throw err;
+    }
   };
 
+  // ✅ Logout Function
   const logout = () => {
     localStorage.removeItem("spmos_user");
     setUser(null);
@@ -48,12 +106,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider
-      value={{ isAuthenticated, user, login, signup, logout }}
-    >
+    <AuthContext.Provider value={{ isAuthenticated, user, login, signup, logout }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => useContext(AuthContext);
+// ✅ Hook to use Auth context easily
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context)
+    throw new Error("useAuth must be used within an AuthProvider");
+  return context;
+};

@@ -4,40 +4,110 @@ import User from "../models/User.js";
 
 const router = express.Router();
 
-// POST /api/users/register
-router.post("/register", async (req, res) => {
-  console.log("REQ BODY:", req.body);  
-  const { name, username, email, phone, password } = req.body;
+// ✅ Health check (optional)
+router.get("/", (req, res) => {
+  res.json({ message: "User API working ✅" });
+});
+
+// ===================== SIGNUP =====================
+router.post("/signup", async (req, res) => {
+  console.log("📩 Signup Request Body:", req.body);
+  const { fullName, username, email, phoneNumber, password } = req.body;
+
+  if (!fullName || !username || !email || !phoneNumber || !password) {
+    return res.status(400).json({ message: "All fields are required" });
+  }
 
   try {
-    // Check if email or username already exists
-    const existingUser = await User.findOne({
-      $or: [{ email }, { username }]
-    });
-
+    // Check for existing user
+    const existingUser = await User.findOne({ $or: [{ email }, { username }] });
     if (existingUser) {
-      return res.status(400).json({ message: "Email or username already exists" });
+      return res
+        .status(400)
+        .json({ message: "Email or username already exists" });
     }
 
-    // Hash the password
+    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create new user
+    // Create user
     const newUser = new User({
-      name,
+      name: fullName,
       username,
       email,
-      phone,
-      password: hashedPassword
+      phone: phoneNumber,
+      password: hashedPassword,
     });
 
-    // Save to MongoDB
     await newUser.save();
 
-    res.status(201).json({ message: "User registered successfully", userId: newUser._id });
+    console.log("✅ User created:", newUser.email);
+
+    res.status(201).json({
+      success: true,
+      message: "User registered successfully",
+      user: {
+        id: newUser._id,
+        name: newUser.name,
+        username: newUser.username,
+        email: newUser.email,
+        phone: newUser.phone,
+      },
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error" });
+    console.error("❌ Signup error:", error.message);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// ===================== LOGIN =====================
+router.post("/login", async (req, res) => {
+  console.log("📩 Login Request Body:", req.body);
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Email and password are required" });
+  }
+
+  try {
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      console.log("⚠️ User not found:", email);
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid email or password" });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      console.log("⚠️ Password mismatch for:", email);
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid email or password" });
+    }
+
+    console.log("✅ Login successful for:", user.email);
+
+    return res.status(200).json({
+      success: true,
+      message: "Login successful",
+      user: {
+        id: user._id,
+        name: user.name,
+        username: user.username,
+        email: user.email,
+        phone: user.phone,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Login error:", error);
+    // Ensure no text/HTML leaks out
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal Server Error" });
   }
 });
 
