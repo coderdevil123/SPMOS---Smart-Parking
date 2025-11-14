@@ -3,11 +3,9 @@ import {
   useState,
   useContext,
   ReactNode,
-  useEffect,
 } from "react";
 import type { ParkingSpot, Booking } from "@shared/schema";
 
-// Dummy data for parking spots
 const initialParkingSpots: ParkingSpot[] = [
   {
     id: "1",
@@ -104,39 +102,49 @@ export const ParkingProvider = ({ children }: { children: ReactNode }) => {
   const [parkingSpots, setParkingSpots] =
     useState<ParkingSpot[]>(initialParkingSpots);
 
-  const startSession = (booking: Booking) => {
-    // Simulate booking and spot availability update
-    const updatedSpots = parkingSpots.map((spot) => {
-      if (spot.id === booking.spot.id) {
-        return { ...spot, availableSpots: spot.availableSpots - 1 };
-      }
-      return spot;
-    });
+  const startSession = (bookingResponse: any) => {
+    const booking = bookingResponse.booking ?? bookingResponse;
+
+    const updatedSpots = parkingSpots.map((spot) =>
+      String(spot.id) === String(booking.parkingSpot)
+        ? { ...spot, availableSpots: spot.availableSpots - 1 }
+        : spot
+    );
+
     setParkingSpots(updatedSpots);
 
-    // Store session data and set view
-    const newSession = { booking, isActive: true, startTime: new Date() };
+    const newSession = {
+      booking: {
+        vehicleNumber: booking.vehicleNumber,
+        parkingSpot: String(booking.parkingSpot),
+        startTime: booking.startTime,
+        endTime: booking.endTime,
+        totalAmount: booking.totalAmount,
+      },
+      isActive: true,
+      startTime: new Date(),
+    };
+
     setSessionData(newSession);
     setCurrentView("session");
     localStorage.setItem("spmos_session", JSON.stringify(newSession));
   };
 
   const endSession = () => {
-    // Simulate session end and spot availability update
-    const updatedSpots = parkingSpots.map((spot) => {
-      if (spot.id === sessionData?.booking.spot.id) {
-        return { ...spot, availableSpots: spot.availableSpots + 1 };
-      }
-      return spot;
-    });
+    const updatedSpots = parkingSpots.map((spot) =>
+      String(spot.id) === String(sessionData?.booking.parkingSpot)
+        ? { ...spot, availableSpots: spot.availableSpots + 1 }
+        : spot
+    );
+
     setParkingSpots(updatedSpots);
 
-    // Update session data
     const updatedSession = {
       ...sessionData,
       isActive: false,
       endTime: new Date(),
     };
+
     setSessionData(updatedSession);
     setCurrentView("summary");
     localStorage.setItem("spmos_session", JSON.stringify(updatedSession));
@@ -153,7 +161,7 @@ export const ParkingProvider = ({ children }: { children: ReactNode }) => {
         setSessionData,
         startSession,
         endSession,
-        parkingSpots, // Pass spots for SearchPage
+        parkingSpots,
       }}
     >
       {children}

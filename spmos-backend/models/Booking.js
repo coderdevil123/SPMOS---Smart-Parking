@@ -6,33 +6,40 @@ const bookingSchema = new mongoose.Schema({
     ref: "User",
     required: true,
   },
+
+  // ✅ TEMP FIX — allow simple string IDs like "1", "2", "3"
   parkingSpot: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "ParkingSpot",
+    type: String,
     required: true,
   },
+
   vehicleNumber: {
     type: String,
     required: true,
     trim: true,
   },
+
   startTime: {
     type: Date,
     required: true,
   },
+
   endTime: {
     type: Date,
     required: true,
   },
+
   totalAmount: {
     type: Number,
     required: true,
   },
+
   paymentStatus: {
     type: String,
     enum: ["pending", "completed", "failed"],
     default: "pending",
   },
+
   createdAt: {
     type: Date,
     default: Date.now,

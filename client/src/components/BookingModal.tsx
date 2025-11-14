@@ -52,36 +52,47 @@ export default function BookingModal() {
     });
     return;
   }
+   console.log("🔥 selectedSpot:", selectedSpot);
+  console.log("🔥 selectedSpot._id:", selectedSpot._id);
 
+  // ✅ Safely get logged-in user
+  const storedUser = localStorage.getItem("spmos_user");
+  const user = storedUser ? JSON.parse(storedUser) : null;
+
+  if (!user) {
+    toast({
+      variant: "destructive",
+      title: "Login required",
+      description: "Please login before booking a parking spot.",
+    });
+    return;
+  }
+
+  // ✅ Create correct booking payload (MATCHES BACKEND)
   const bookingData = {
-    parkingSpotId: selectedSpot.id,
-    parkingLotName: selectedSpot.name,
-    location: {
-      address: selectedSpot.address,
-      lat: selectedSpot.lat,
-      lng: selectedSpot.lng,
-    },
-    vehicleNumber: vehicleNumber.trim(),
-    vehicleType,
-    duration,
-    startTime: new Date(startTime),
-    endTime: new Date(new Date(startTime).getTime() + duration * 60 * 60 * 1000),
-    totalCost: total,
-  };
+  user: user.id,                              // REQUIRED ✅
+  parkingSpot: selectedSpot.id,              // ✅ Correct field
+  vehicleNumber: vehicleNumber.trim(),        // ✅ Required
+  startTime: new Date(startTime),             // ✅ Required
+  endTime: new Date(new Date(startTime).getTime() + duration * 60 * 60 * 1000),
+  totalAmount: total                          // ✅ Correct name
+};
+
+
+  console.log("📦 Sending booking:", bookingData);
 
   try {
-    const res = await fetch("/http://localhost:5000/api/bookings", {
+    const res = await fetch("http://localhost:5000/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(bookingData),
     });
 
-    if (!res.ok) throw new Error("Failed to book");
+    const data = await res.json();
 
-    const savedBooking = await res.json();
+    if (!res.ok) throw new Error(data.message || "Failed to book");
 
-    // Update session context with DB data
-    startSession(savedBooking);
+    startSession(data.booking);
 
     setSelectedSpot(null);
 
@@ -89,12 +100,14 @@ export default function BookingModal() {
       title: "Booking Confirmed!",
       description: `Your parking spot ${selectedSpot.name} has been reserved.`,
     });
-  } catch (err) {
-    console.error("Booking error:", err);
+  } catch (error: unknown) {
+    console.error("❌ Booking error:", error);
+    const message =
+      error instanceof Error ? error.message : typeof error === "string" ? error : "Something went wrong.";
     toast({
       variant: "destructive",
       title: "Booking Failed",
-      description: "Something went wrong. Please try again.",
+      description: message,
     });
   }
 };
