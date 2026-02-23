@@ -2,10 +2,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { MapPin, Navigation, ExternalLink } from 'lucide-react';
 import { useParking } from '@/contexts/ParkingContext';
+import { useState } from 'react';
 
 export default function NavigationModal() {
   const { currentView, setCurrentView, sessionData } = useParking();
   const isOpen = currentView === 'navigation';
+  const [eta, setEta] = useState("Calculating...");
   
   const spotName = sessionData?.booking?.spot?.name || 'Your Parking Spot';
 
@@ -13,10 +15,44 @@ export default function NavigationModal() {
     setCurrentView('session');
   };
 
+  const calculateETA = (originLat: number, originLng: number, destLat: number, destLng: number) => {
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+
+  const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${originLat},${originLng}&destinations=${destLat},${destLng}&key=${apiKey}`;
+
+  fetch(url)
+    .then(res => res.json())
+    .then(data => {
+      const element = data.rows[0].elements[0];
+      if (element.status === "OK") {
+        setEta(`${element.duration.text} (${element.distance.text})`);
+      }
+    })
+    .catch(() => setEta("Unable to calculate"));
+};
+
   const handleOpenExternalMap = () => {
-    // In a real app, this would open Google Maps or similar
-    alert('In a real app, this would open Google Maps with turn-by-turn navigation to your parking spot.');
-  };
+  if (!sessionData?.booking?.spot?.latitude || 
+      !sessionData?.booking?.spot?.longitude) {
+    alert("Destination coordinates not available.");
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+    const originLat = position.coords.latitude;
+    const originLng = position.coords.longitude;
+
+    const destLat = sessionData.booking.spot.latitude;
+    const destLng = sessionData.booking.spot.longitude;
+
+    calculateETA(originLat, originLng, destLat, destLng);
+  },
+    (error) => {
+      alert("Unable to get your location. Please allow location access.");
+    }
+  );
+};
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -57,7 +93,7 @@ export default function NavigationModal() {
               <div className="flex items-center">
                 <Navigation className="h-4 w-4 text-primary mr-2" />
                 <p className="text-sm text-primary">
-                  <strong>ETA:</strong> 8 minutes (2.3 km)
+                  <strong>ETA:</strong> {eta}
                 </p>
               </div>
             </div>

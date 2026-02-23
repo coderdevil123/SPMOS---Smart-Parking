@@ -1,23 +1,20 @@
 import express from "express";
-import axios from "axios";
-import dotenv from "dotenv";
+import fetch from "node-fetch";
 
-dotenv.config();
 const router = express.Router();
 
-// 📍 Get directions between origin & destination
-router.get("/directions", async (req, res) => {
-  try {
-    const { origin, destination } = req.query;
-    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+router.get("/distance", async (req, res) => {
+  const { originLat, originLng, destLat, destLng } = req.query;
 
-    const response = await axios.get(
-      `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${destination}&key=${apiKey}`
+  try {
+    const response = await fetch(
+      `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${originLat},${originLng}&destinations=${destLat},${destLng}&key=${process.env.GOOGLE_MAPS_API_KEY}`
     );
 
-    res.status(200).json(response.data);
+    const data = await response.json();
+    res.json(data);
   } catch (error) {
-    res.status(500).json({ message: "Error fetching directions", error });
+    res.status(500).json({ message: "Failed to fetch distance" });
   }
 });
 
