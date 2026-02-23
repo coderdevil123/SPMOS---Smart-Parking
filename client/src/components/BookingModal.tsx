@@ -82,7 +82,10 @@ export default function BookingModal() {
   console.log("📦 Sending booking:", bookingData);
 
   try {
-    const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+    // Use relative path in production (works on Vercel), localhost for development
+    const API_URL = import.meta.env.VITE_API_URL !== undefined 
+      ? import.meta.env.VITE_API_URL 
+      : (import.meta.env.DEV ? "http://localhost:5000" : "");
     const res = await fetch(`${API_URL}/api/bookings`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
