@@ -68,8 +68,7 @@ export default function NavigationModal() {
 
         <div className="text-center">
           <p className="text-muted-foreground mb-6">
-            In a real app, this would integrate with Google Maps or similar navigation service 
-            to provide turn-by-turn directions to your parking spot.
+            open google maps
           </p>
           
           <div className="space-y-3 mb-6">
