@@ -4,6 +4,12 @@ import User from "../models/User.js";
 
 const router = express.Router();
 
+// ===================== ADMIN EMAILS =====================
+const ADMIN_EMAILS = [
+  "jyotiraditiya@spmos.com",
+  "misrajyotiraditya@gmail.com",
+];
+
 // ✅ Health check (optional)
 router.get("/", (req, res) => {
   res.json({ message: "User API working ✅" });
@@ -52,6 +58,7 @@ router.post("/signup", async (req, res) => {
         username: newUser.username,
         email: newUser.email,
         phone: newUser.phone,
+        role: newUser.role || "user",
       },
     });
   } catch (error) {
@@ -91,6 +98,13 @@ router.post("/login", async (req, res) => {
 
     console.log("✅ Login successful for:", user.email);
 
+    // ✅ Auto-upgrade to admin if email is in ADMIN_EMAILS list
+    if (ADMIN_EMAILS.includes(user.email) && user.role !== "admin") {
+      user.role = "admin";
+      await user.save();
+      console.log("✅ Auto-upgraded to admin:", user.email);
+    }
+
     return res.status(200).json({
       success: true,
       message: "Login successful",
@@ -100,6 +114,7 @@ router.post("/login", async (req, res) => {
         username: user.username,
         email: user.email,
         phone: user.phone,
+        role: user.role || "user",
       },
     });
   } catch (error) {
@@ -108,6 +123,49 @@ router.post("/login", async (req, res) => {
     return res
       .status(500)
       .json({ success: false, message: "Internal Server Error" });
+  }
+});
+
+// ===================== SEED ADMIN =====================
+// POST /api/users/seed-admin — Creates/upgrades admin accounts (run once)
+router.post("/seed-admin", async (req, res) => {
+  try {
+    const adminAccounts = [
+      { email: "jyotiraditiya@spmos.com", username: "jyotiraditiya", name: "Jyotiraditiya", password: "admin123", phone: "0000000000" },
+      { email: "misrajyotiraditya@gmail.com", username: "misrajyotiraditya", name: "Jyotiraditya Misra", password: "admin123", phone: "0000000000" },
+    ];
+
+    const results = [];
+
+    for (const acc of adminAccounts) {
+      const existing = await User.findOne({ $or: [{ email: acc.email }, { username: acc.username }] });
+      if (existing) {
+        // Always reset password and ensure admin role
+        const hashedPassword = await bcrypt.hash(acc.password, 10);
+        existing.role = "admin";
+        existing.password = hashedPassword;
+        await existing.save();
+        results.push(`${acc.email} updated as admin (password reset)`);
+      } else {
+        const hashedPassword = await bcrypt.hash(acc.password, 10);
+        const admin = new User({
+          name: acc.name,
+          username: acc.username,
+          email: acc.email,
+          phone: acc.phone,
+          password: hashedPassword,
+          role: "admin",
+        });
+        await admin.save();
+        console.log(`✅ Admin seeded: ${acc.email}`);
+        results.push(`${acc.email} created as admin`);
+      }
+    }
+
+    res.status(201).json({ success: true, message: results.join("; ") });
+  } catch (error) {
+    console.error("❌ Seed admin error:", error.message);
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 

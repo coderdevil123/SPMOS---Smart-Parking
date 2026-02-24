@@ -12,10 +12,12 @@ type User = {
   username: string;
   email: string;
   phone?: string;
+  role?: "admin" | "user";
 };
 
 type AuthContextType = {
   isAuthenticated: boolean;
+  isAdmin: boolean;
   user: User | null;
   signup: (userData: any) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
@@ -40,7 +42,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // ✅ Signup Function
   const signup = async (userData: any) => {
     try {
-      const res = await fetch("http://localhost:5000/api/users/signup", {
+      const res = await fetch("http://localhost:5001/api/users/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(userData),
@@ -70,7 +72,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // ✅ Login Function
   const login = async (email: string, password: string) => {
     try {
-      const res = await fetch("http://localhost:5000/api/users/login", {
+      const res = await fetch("http://localhost:5001/api/users/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -106,7 +108,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, signup, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, isAdmin: user?.role === "admin", user, login, signup, logout }}>
       {children}
     </AuthContext.Provider>
   );

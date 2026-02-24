@@ -9,18 +9,24 @@ import parkingRoutes from "./routes/parking.js";
 import bookingRoutes from "./routes/booking.js";
 import paymentRoutes from "./routes/payment.js";
 import mapsRoutes from "./routes/maps.js";
+import dashboardRoutes from "./routes/dashboard.js";
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 // ================= MIDDLEWARE =================
 
 // ✅ CORS - allow frontend connection
 const allowedOrigins = [
   "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:5175",
+  "http://localhost:5176",
+  "http://localhost:5177",
+  "http://localhost:5178",
   "https://spmos.vercel.app",
   process.env.FRONTEND_URL
 ].filter(Boolean);
@@ -58,6 +64,7 @@ app.use("/api/parking", parkingRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/maps", mapsRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 // ================= ERROR HANDLERS =================
 

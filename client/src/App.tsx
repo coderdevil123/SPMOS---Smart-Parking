@@ -12,14 +12,10 @@ import BookingModal from "@/components/BookingModal";
 import ParkingSession from "@/components/ParkingSession";
 import NavigationModal from "@/components/NavigationModal";
 import SessionSummary from "@/components/SessionSummary";
+import AdminDashboard from "@/components/admin/AdminDashboard";
 
-function AppContent() {
-  const { isAuthenticated } = useAuth();
+function UserContent() {
   const { currentView } = useParking();
-
-  if (!isAuthenticated) {
-    return <AuthModal />;
-  }
 
   const renderCurrentView = () => {
     switch (currentView) {
@@ -46,14 +42,32 @@ function AppContent() {
   );
 }
 
+function AppContent() {
+  const { isAuthenticated, isAdmin } = useAuth();
+
+  if (!isAuthenticated) {
+    return <AuthModal />;
+  }
+
+  // ✅ Admin users → Admin Dashboard (no ParkingProvider needed)
+  if (isAdmin) {
+    return <AdminDashboard />;
+  }
+
+  // ✅ Normal users → User views (wrapped in ParkingProvider)
+  return (
+    <ParkingProvider>
+      <UserContent />
+    </ParkingProvider>
+  );
+}
+
 function App() {
   return (
     <TooltipProvider>
       <AuthProvider>
-        <ParkingProvider>
-          <AppContent />
-          <Toaster />
-        </ParkingProvider>
+        <AppContent />
+        <Toaster />
       </AuthProvider>
     </TooltipProvider>
   );
