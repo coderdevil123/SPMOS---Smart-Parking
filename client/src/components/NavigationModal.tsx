@@ -5,7 +5,13 @@ import { useParking } from '@/contexts/ParkingContext';
 import { useState } from 'react';
 
 export default function NavigationModal() {
-  const { currentView, setCurrentView, sessionData } = useParking();
+  const {
+    currentView,
+    setCurrentView,
+    sessionData,
+    userLocation,
+    setUserLocation
+  } = useParking();
   const isOpen = currentView === 'navigation';
 
   const [eta, setEta] = useState<string>("Click 'Open Maps' to calculate");
@@ -61,6 +67,23 @@ export default function NavigationModal() {
      OPEN GOOGLE MAPS + CALCULATE ETA
   ========================================================= */
 
+  const openMaps = (
+    originLat: number,
+    originLng: number,
+    destLat: number,
+    destLng: number
+  ) => {
+    calculateETA(originLat, originLng, destLat, destLng);
+
+    const mapsUrl =
+      `https://www.google.com/maps/dir/?api=1` +
+      `&origin=${originLat},${originLng}` +
+      `&destination=${destLat},${destLng}` +
+      `&travelmode=driving`;
+
+    window.open(mapsUrl, "_blank");
+  };
+
   const handleOpenExternalMap = () => {
     if (!spot) {
       alert("No active parking session found.");
@@ -75,22 +98,25 @@ export default function NavigationModal() {
       return;
     }
 
+    // ✅ If we already have location, reuse it
+    if (userLocation) {
+      openMaps(userLocation.latitude, userLocation.longitude, destLat, destLng);
+      return;
+    }
+
+    // ✅ Ask only once
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const originLat = position.coords.latitude;
         const originLng = position.coords.longitude;
 
-        // Calculate ETA via backend
-        calculateETA(originLat, originLng, destLat, destLng);
+        // Save globally
+        setUserLocation({
+          latitude: originLat,
+          longitude: originLng
+        });
 
-        // Open Google Maps
-        const mapsUrl =
-          `https://www.google.com/maps/dir/?api=1` +
-          `&origin=${originLat},${originLng}` +
-          `&destination=${destLat},${destLng}` +
-          `&travelmode=driving`;
-
-        window.open(mapsUrl, "_blank");
+        openMaps(originLat, originLng, destLat, destLng);
       },
       () => {
         alert("Please allow location access.");

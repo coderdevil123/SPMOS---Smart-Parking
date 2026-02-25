@@ -5,6 +5,7 @@ import { CheckCircle, Download, Mail, Search, CreditCard } from 'lucide-react';
 import { useParking } from '@/contexts/ParkingContext';
 import { formatCurrencyDetailed, calculateGST } from '@/utils/currency';
 import { formatDuration } from '@/utils/realTimeUpdates';
+import jsPDF from 'jspdf';
 
 export default function SessionSummary() {
   const { sessionData, setCurrentView } = useParking();
@@ -49,9 +50,69 @@ export default function SessionSummary() {
   };
 
   const handleDownloadReceipt = () => {
-    // In a real app, this would generate and download a PDF receipt
-    alert('Receipt download functionality would be implemented here');
-  };
+  if (!sessionData?.booking) return;
+
+  const doc = new jsPDF();
+
+  const { booking, startTime, endTime } = sessionData;
+
+  const durationMs =
+    (endTime?.getTime() || Date.now()) - startTime.getTime();
+  const actualHours = durationMs / (1000 * 60 * 60);
+
+  const hourlyRate = parseFloat(booking.spot.hourlyRate);
+  const parkingFee = hourlyRate * actualHours;
+  const serviceFee = 5;
+  const gst = calculateGST(parkingFee + serviceFee);
+  const total = parkingFee + serviceFee + gst;
+
+  let y = 20;
+
+  doc.setFontSize(18);
+  doc.text("SPMOS - Parking Receipt", 20, y);
+
+  y += 10;
+  doc.setFontSize(12);
+  doc.text(`Location: ${booking.spot.name}`, 20, y);
+
+  y += 8;
+  doc.text(`Vehicle: ${booking.vehicleNumber}`, 20, y);
+
+  y += 8;
+  doc.text(`Start Time: ${startTime.toLocaleString()}`, 20, y);
+
+  y += 8;
+  doc.text(
+    `End Time: ${endTime ? endTime.toLocaleString() : "N/A"}`,
+    20,
+    y
+  );
+
+  y += 8;
+  doc.text(`Duration: ${actualHours.toFixed(2)} hours`, 20, y);
+
+  y += 12;
+  doc.text(`Hourly Rate: ₹${hourlyRate}/hr`, 20, y);
+
+  y += 8;
+  doc.text(`Parking Fee: ₹${parkingFee.toFixed(2)}`, 20, y);
+
+  y += 8;
+  doc.text(`Service Fee: ₹${serviceFee.toFixed(2)}`, 20, y);
+
+  y += 8;
+  doc.text(`GST (18%): ₹${gst.toFixed(2)}`, 20, y);
+
+  y += 10;
+  doc.setFontSize(14);
+  doc.text(`Total Paid: ₹${total.toFixed(2)}`, 20, y);
+
+  y += 15;
+  doc.setFontSize(10);
+  doc.text("Thank you for using SPMOS!", 20, y);
+
+  doc.save(`SPMOS_Receipt_${booking.vehicleNumber}.pdf`);
+};
 
   const handleEmailReceipt = () => {
     // In a real app, this would send the receipt to user's email
@@ -222,6 +283,28 @@ export default function SessionSummary() {
                   </div>
                 </div>
               </Button>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Make Payment</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid md:grid-cols-3 gap-4">
+
+              <Button onClick={() => alert("UPI payment flow here")}>
+                Pay via UPI
+              </Button>
+
+              <Button onClick={() => alert("Card payment flow here")}>
+                Pay via Card
+              </Button>
+
+              <Button onClick={() => alert("Net Banking flow here")}>
+                Net Banking
+              </Button>
+
             </div>
           </CardContent>
         </Card>

@@ -117,6 +117,44 @@ export const ParkingProvider = ({ children }: { children: ReactNode }) => {
   const [sessionData, setSessionData] = useState<any | null>(null);
   const [parkingSpots, setParkingSpots] =
     useState<ParkingSpot[]>(initialParkingSpots);
+  const [userLocation, setUserLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const markAsReached = () => {
+    setSessionData((prev: any) => ({
+      ...prev,
+      reached: true,
+      status: "REACHED",
+    }));
+  };
+
+  const scanTicket = () => {
+    const now = new Date();
+
+    setSessionData((prev: any) => ({
+      ...prev,
+      scanned: true,
+      timerStarted: true,
+      isActive: true,
+      actualStartTime: now,
+      status: "ACTIVE",
+    }));
+  };
+
+  const stopTimer = () => {
+    const now = new Date();
+
+    setSessionData((prev: any) => ({
+      ...prev,
+      isActive: false,
+      timerStarted: false,
+      endTime: now,
+      status: "COMPLETED",
+    }));
+
+    setCurrentView("summary");
+  };
 
   /* =========================================================
      2️⃣  FIXED startSession (ATTACH FULL SPOT)
@@ -125,18 +163,6 @@ export const ParkingProvider = ({ children }: { children: ReactNode }) => {
   const startSession = (bookingResponse: any) => {
     const booking = bookingResponse.booking ?? bookingResponse;
 
-    const updatedSpots = parkingSpots.map((spot) =>
-      String(spot.id) === String(booking.parkingSpot)
-        ? { ...spot, availableSpots: spot.availableSpots - 1 }
-        : spot
-    );
-
-    setParkingSpots(updatedSpots);
-
-    const fullSpot = updatedSpots.find(
-      (s) => String(s.id) === String(booking.parkingSpot)
-    );
-
     const newSession = {
       booking: {
         vehicleNumber: booking.vehicleNumber,
@@ -144,14 +170,17 @@ export const ParkingProvider = ({ children }: { children: ReactNode }) => {
         startTime: booking.startTime,
         endTime: booking.endTime,
         totalAmount: booking.totalAmount,
-        spot: fullSpot,   // 🔥 CRITICAL FIX
       },
-      isActive: true,
-      startTime: new Date(),
+      status: "BOOKED",        // 👈 NEW
+      reached: false,          // 👈 NEW
+      scanned: false,          // 👈 NEW
+      timerStarted: false,     // 👈 NEW
+      actualStartTime: null,   // 👈 NEW
+      isActive: false,         // 👈 TIMER NOT ACTIVE YET
     };
 
     setSessionData(newSession);
-    setCurrentView("session");
+    setCurrentView("navigation");
     localStorage.setItem("spmos_session", JSON.stringify(newSession));
   };
 
@@ -187,6 +216,11 @@ export const ParkingProvider = ({ children }: { children: ReactNode }) => {
         startSession,
         endSession,
         parkingSpots,
+        userLocation,      
+        setUserLocation,
+        markAsReached,
+        scanTicket,
+        stopTimer,
       }}
     >
       {children}

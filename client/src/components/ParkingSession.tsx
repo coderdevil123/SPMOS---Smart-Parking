@@ -7,18 +7,30 @@ import { useParking } from '@/contexts/ParkingContext';
 import { formatDuration, calculateCurrentCost } from '@/utils/realTimeUpdates';
 import { formatCurrencyDetailed } from '@/utils/currency';
 import type { ParkingSpot } from "@shared/schema";
+import { QRCodeSVG } from "qrcode.react";
 
 export default function ParkingSession() {
-  const { sessionData, endSession, setCurrentView, parkingSpots } = useParking();
+  const { sessionData, stopTimer, setCurrentView, parkingSpots, markAsReached, scanTicket } = useParking();
   const [currentTime, setCurrentTime] = useState(new Date());
+  const { booking, actualStartTime, timerStarted, status } = sessionData;
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    if (!timerStarted) return;
+
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [timerStarted]);
+
   // ✅ Case: No active session
-  if (!sessionData?.isActive || !sessionData.booking) {
+  if (!sessionData?.booking) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <Card className="max-w-md">
@@ -35,8 +47,6 @@ export default function ParkingSession() {
       </div>
     );
   }
-
-  const { booking, startTime } = sessionData;
 
   // ✅ Normalize ID (string/number mismatch fix)
   const bookingSpotId = String(booking.parkingSpot);
@@ -58,8 +68,13 @@ export default function ParkingSession() {
 
   // ✅ Hourly rate from the dummy spot
   const hourlyRate = parseFloat(spot.hourlyRate);
-  const duration = formatDuration(startTime);
-  const currentCost = calculateCurrentCost(startTime, hourlyRate);
+  const duration = timerStarted && actualStartTime
+  ? formatDuration(actualStartTime, currentTime)
+  : "00:00:00";
+
+  const currentCost = timerStarted && actualStartTime
+    ? calculateCurrentCost(actualStartTime, hourlyRate)
+    : 0;
 
   return (
     <div className="min-h-screen bg-slate-50" data-testid="page-session">
@@ -71,7 +86,7 @@ export default function ParkingSession() {
             <div className="flex items-center justify-between mb-4">
               <CardTitle className="text-2xl">Active Parking Session</CardTitle>
               <Badge className="status-available font-medium">
-                <div className="w-2 h-2 rounded-full bg-current mr-2" /> In Progress
+                <div className="w-2 h-2 rounded-full bg-current mr-2" /> {sessionData.status}
               </Badge>
             </div>
 
@@ -177,6 +192,44 @@ export default function ParkingSession() {
           </CardContent>
         </Card>
 
+        {!sessionData.reached && (
+          <Card className="mb-6">
+            <CardContent className="p-6 text-center">
+              <h3 className="text-lg font-bold mb-4">
+                Arrived at Parking Location?
+              </h3>
+
+              <Button onClick={markAsReached}>
+                I Have Reached Destination
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {sessionData.reached && !sessionData.scanned && (
+          <Card className="mb-6">
+            <CardContent className="p-6 text-center">
+              <h3 className="text-lg font-bold mb-4">Parking Ticket</h3>
+
+              <QRCodeSVG
+                value={`SPMOS-${booking.vehicleNumber}-${Date.now()}`}
+                size={180}
+              />
+
+              <p className="text-sm mt-4 text-muted-foreground">
+                Scan this ticket at the entry gate.
+              </p>
+
+              <Button
+                className="mt-4"
+                onClick={scanTicket}
+              >
+                Simulate Scan Ticket
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* End Session */}
         <Card className="border-red-200">
           <CardContent className="p-6">
@@ -191,7 +244,7 @@ export default function ParkingSession() {
               </div>
               <Button
                 variant="destructive"
-                onClick={endSession}
+                onClick={stopTimer}
                 data-testid="button-end-session"
               >
                 <Pause className="mr-2 h-4 w-4" /> End Session
