@@ -17,7 +17,7 @@ export default function NavigationHeader() {
           </div>
           <div className="flex items-center space-x-4">
             <span className="text-sm font-medium" data-testid="text-username">
-              {user?.fullName || user?.username}
+              {user?.username}
             </span>
             <Button
               variant="ghost"

@@ -96,7 +96,10 @@ export default function BookingModal() {
 
     if (!res.ok) throw new Error(data.message || "Failed to book");
 
-    startSession(data.booking);
+    startSession({
+      ...data.booking,
+      spot: selectedSpot
+    });
 
     setSelectedSpot(null);
 

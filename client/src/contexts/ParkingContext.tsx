@@ -4,7 +4,11 @@ import {
   useContext,
   ReactNode,
 } from "react";
-import type { ParkingSpot, Booking } from "@shared/schema";
+import type { ParkingSpot } from "@shared/schema";
+
+/* =========================================================
+   1️⃣  ADD COORDINATES TO ALL DUMMY SPOTS
+========================================================= */
 
 const initialParkingSpots: ParkingSpot[] = [
   {
@@ -20,6 +24,8 @@ const initialParkingSpots: ParkingSpot[] = [
     imageUrl: "https://images.unsplash.com/photo-1578662996442-48f60103fc96",
     createdAt: new Date(),
     state: "Sikkim",
+    latitude: 27.3389,
+    longitude: 88.6065,
   },
   {
     id: "2",
@@ -34,6 +40,8 @@ const initialParkingSpots: ParkingSpot[] = [
     imageUrl: "https://images.unsplash.com/photo-1578662996442-48f60103fc96",
     createdAt: new Date(),
     state: "Sikkim",
+    latitude: 27.3315,
+    longitude: 88.6120,
   },
   {
     id: "3",
@@ -48,6 +56,8 @@ const initialParkingSpots: ParkingSpot[] = [
     imageUrl: "https://images.unsplash.com/photo-1544735716-392fe2489ffa",
     createdAt: new Date(),
     state: "Sikkim",
+    latitude: 27.2997,
+    longitude: 88.5843,
   },
   {
     id: "4",
@@ -62,6 +72,8 @@ const initialParkingSpots: ParkingSpot[] = [
     imageUrl: "https://images.unsplash.com/photo-1578662996442-48f60103fc96",
     createdAt: new Date(),
     state: "Sikkim",
+    latitude: 27.1665,
+    longitude: 88.3654,
   },
   {
     id: "5",
@@ -76,6 +88,8 @@ const initialParkingSpots: ParkingSpot[] = [
     imageUrl: "https://images.unsplash.com/photo-1544735716-392fe2489ffa",
     createdAt: new Date(),
     state: "Sikkim",
+    latitude: 27.3038,
+    longitude: 88.2372,
   },
   {
     id: "6",
@@ -90,6 +104,8 @@ const initialParkingSpots: ParkingSpot[] = [
     imageUrl: "https://images.unsplash.com/photo-1578662996442-48f60103fc96",
     createdAt: new Date(),
     state: "Sikkim",
+    latitude: 27.3380,
+    longitude: 88.6050,
   },
 ];
 
@@ -102,6 +118,10 @@ export const ParkingProvider = ({ children }: { children: ReactNode }) => {
   const [parkingSpots, setParkingSpots] =
     useState<ParkingSpot[]>(initialParkingSpots);
 
+  /* =========================================================
+     2️⃣  FIXED startSession (ATTACH FULL SPOT)
+  ========================================================= */
+
   const startSession = (bookingResponse: any) => {
     const booking = bookingResponse.booking ?? bookingResponse;
 
@@ -113,6 +133,10 @@ export const ParkingProvider = ({ children }: { children: ReactNode }) => {
 
     setParkingSpots(updatedSpots);
 
+    const fullSpot = updatedSpots.find(
+      (s) => String(s.id) === String(booking.parkingSpot)
+    );
+
     const newSession = {
       booking: {
         vehicleNumber: booking.vehicleNumber,
@@ -120,6 +144,7 @@ export const ParkingProvider = ({ children }: { children: ReactNode }) => {
         startTime: booking.startTime,
         endTime: booking.endTime,
         totalAmount: booking.totalAmount,
+        spot: fullSpot,   // 🔥 CRITICAL FIX
       },
       isActive: true,
       startTime: new Date(),

@@ -7,52 +7,96 @@ import { useState } from 'react';
 export default function NavigationModal() {
   const { currentView, setCurrentView, sessionData } = useParking();
   const isOpen = currentView === 'navigation';
-  const [eta, setEta] = useState("Calculating...");
-  
-  const spotName = sessionData?.booking?.spot?.name || 'Your Parking Spot';
+
+  const [eta, setEta] = useState<string>("Click 'Open Maps' to calculate");
 
   const handleClose = () => {
     setCurrentView('session');
   };
 
-  const calculateETA = (originLat: number, originLng: number, destLat: number, destLng: number) => {
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  /* =========================================================
+     SAFE ACCESS TO SPOT
+  ========================================================= */
 
-  const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${originLat},${originLng}&destinations=${destLat},${destLng}&key=${apiKey}`;
+  const spot = sessionData?.booking?.spot;
 
-  fetch(url)
-    .then(res => res.json())
-    .then(data => {
-      const element = data.rows[0].elements[0];
-      if (element.status === "OK") {
+  const spotName = spot?.name ?? "Your Parking Spot";
+
+  /* =========================================================
+     CALCULATE ETA FROM BACKEND
+  ========================================================= */
+
+  const calculateETA = async (
+    originLat: number,
+    originLng: number,
+    destLat: number,
+    destLng: number
+  ) => {
+    try {
+      setEta("Calculating...");
+
+      const backendUrl =
+        import.meta.env.VITE_BACKEND_URL || "http://localhost:5001";
+
+      const response = await fetch(
+        `${backendUrl}/api/maps/distance?originLat=${originLat}&originLng=${originLng}&destLat=${destLat}&destLng=${destLng}`
+      );
+
+      const data = await response.json();
+
+      const element = data?.rows?.[0]?.elements?.[0];
+
+      if (element?.status === "OK") {
         setEta(`${element.duration.text} (${element.distance.text})`);
+      } else {
+        setEta("Route not available");
       }
-    })
-    .catch(() => setEta("Unable to calculate"));
-};
+    } catch (error) {
+      console.error("ETA Error:", error);
+      setEta("Unable to calculate");
+    }
+  };
+
+  /* =========================================================
+     OPEN GOOGLE MAPS + CALCULATE ETA
+  ========================================================= */
 
   const handleOpenExternalMap = () => {
-  if (!sessionData?.booking?.spot?.latitude || 
-      !sessionData?.booking?.spot?.longitude) {
-    alert("Destination coordinates not available.");
-    return;
-  }
-
-  navigator.geolocation.getCurrentPosition(
-    (position) => {
-    const originLat = position.coords.latitude;
-    const originLng = position.coords.longitude;
-
-    const destLat = sessionData.booking.spot.latitude;
-    const destLng = sessionData.booking.spot.longitude;
-
-    calculateETA(originLat, originLng, destLat, destLng);
-  },
-    (error) => {
-      alert("Unable to get your location. Please allow location access.");
+    if (!spot) {
+      alert("No active parking session found.");
+      return;
     }
-  );
-};
+
+    const destLat = spot.latitude;
+    const destLng = spot.longitude;
+
+    if (destLat == null || destLng == null) {
+      alert("Destination coordinates not available.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const originLat = position.coords.latitude;
+        const originLng = position.coords.longitude;
+
+        // Calculate ETA via backend
+        calculateETA(originLat, originLng, destLat, destLng);
+
+        // Open Google Maps
+        const mapsUrl =
+          `https://www.google.com/maps/dir/?api=1` +
+          `&origin=${originLat},${originLng}` +
+          `&destination=${destLat},${destLng}` +
+          `&travelmode=driving`;
+
+        window.open(mapsUrl, "_blank");
+      },
+      () => {
+        alert("Please allow location access.");
+      }
+    );
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -68,10 +112,12 @@ export default function NavigationModal() {
 
         <div className="text-center">
           <p className="text-muted-foreground mb-6">
-            open google maps
+            Click on "Open Maps" to get real-time directions.
           </p>
-          
+
           <div className="space-y-3 mb-6">
+
+            {/* FROM */}
             <div className="text-left p-3 bg-slate-50 rounded-lg">
               <div className="flex items-center">
                 <MapPin className="h-4 w-4 text-muted-foreground mr-2" />
@@ -80,14 +126,18 @@ export default function NavigationModal() {
                 </p>
               </div>
             </div>
+
+            {/* TO */}
             <div className="text-left p-3 bg-slate-50 rounded-lg">
               <div className="flex items-center">
                 <MapPin className="h-4 w-4 text-primary mr-2" />
-                <p className="text-sm" data-testid="text-navigation-destination">
+                <p className="text-sm">
                   <strong>To:</strong> {spotName}
                 </p>
               </div>
             </div>
+
+            {/* ETA */}
             <div className="text-left p-3 bg-blue-50 rounded-lg">
               <div className="flex items-center">
                 <Navigation className="h-4 w-4 text-primary mr-2" />
@@ -96,21 +146,21 @@ export default function NavigationModal() {
                 </p>
               </div>
             </div>
+
           </div>
-          
+
           <div className="flex gap-3">
             <Button
               variant="outline"
               className="flex-1"
               onClick={handleClose}
-              data-testid="button-close-navigation"
             >
               Close
             </Button>
+
             <Button
               className="flex-1"
               onClick={handleOpenExternalMap}
-              data-testid="button-open-external-map"
             >
               Open Maps
               <ExternalLink className="ml-2 h-4 w-4" />
